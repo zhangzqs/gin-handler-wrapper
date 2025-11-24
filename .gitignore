@@ -1,1 +1,32 @@
+# Claude 相关
 .claude
+
+# 二进制编译产物
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+
+# Go 编译产物
+/bin/
+/dist/
+*.o
+*.a
+
+# 示例程序编译产物
+/examples/*/fullstack
+/examples/fullstack/fullstack
+
+# IDE 相关
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统相关
+.DS_Store
+Thumbs.db

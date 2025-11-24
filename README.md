@@ -1,14 +1,22 @@
 # Gin Handler Wrapper
 
-一个类型安全的 Gin 处理器包装库，使用 Go 泛型提供优雅的请求/响应处理。
+一个类型安全的 Gin 框架扩展库，包含 **Server 端处理器包装** 和 **Client 端请求构建** 两大功能，使用 Go 泛型提供优雅的请求/响应处理。
 
 ## 特性
 
+### Server 端
 - ✅ **类型安全**：使用 Go 泛型实现编译时类型检查
 - ✅ **自动绑定**：支持 URI、Query、JSON、Form 等多种数据源
 - ✅ **灵活定制**：可自定义解码器、编码器和错误处理器
 - ✅ **便捷函数**：提供多种模板函数覆盖常见场景
 - ✅ **清晰架构**：职责分离，代码易于维护
+
+### Client 端
+- ✅ **类型安全**：完全类型安全的 HTTP 客户端
+- ✅ **智能绑定**：通过标签自动处理路径参数、Query 参数、请求头和请求体
+- ✅ **灵活定制**：可自定义编码器、解码器和错误处理器
+- ✅ **便捷函数**：提供多种包装函数简化常见场景
+- ✅ **基于 Resty**：构建在成熟的 go-resty 库之上
 
 ## 安装
 
@@ -18,11 +26,9 @@ go get github.com/zhangzqs/gin-handler-wrapper
 
 ## 快速开始
 
-> 💡 **完整示例**: 查看 [examples/complete](./examples/complete) 目录获取包含所有功能的完整可运行示例。
+> 💡 **完整示例**: 查看 [examples/fullstack](./examples/fullstack) 目录获取包含 Server 和 Client 完整交互的可运行示例。
 
-### 基础用法 - WrapHandler
-
-完整的输入输出处理器：
+### Server 端基础用法
 
 ```go
 package main
@@ -30,7 +36,7 @@ package main
 import (
     "context"
     "github.com/gin-gonic/gin"
-    wrapper "github.com/zhangzqs/gin-handler-wrapper"
+    "github.com/zhangzqs/gin-handler-wrapper/server"
 )
 
 type CreateUserReq struct {
@@ -38,7 +44,7 @@ type CreateUserReq struct {
     Email string `json:"email" binding:"required,email"`
 }
 
-type CreateUserResp struct {
+type UserResp struct {
     ID    int64  `json:"id"`
     Name  string `json:"name"`
     Email string `json:"email"`
@@ -48,10 +54,9 @@ func main() {
     r := gin.Default()
 
     // 使用 WrapHandler 包装业务逻辑
-    r.POST("/users", wrapper.WrapHandler(
-        func(ctx context.Context, req CreateUserReq) (CreateUserResp, error) {
-            // 业务逻辑：创建用户
-            user := CreateUserResp{
+    r.POST("/users", server.WrapHandler(
+        func(ctx context.Context, req CreateUserReq) (UserResp, error) {
+            user := UserResp{
                 ID:    1,
                 Name:  req.Name,
                 Email: req.Email,
@@ -64,97 +69,120 @@ func main() {
 }
 ```
 
-### WrapGetter - 只有输出
+### Client 端基础用法
 
-适用于获取数据、健康检查等场景：
+```go
+package main
+
+import (
+    "context"
+    "fmt"
+    "github.com/go-resty/resty/v2"
+    "github.com/zhangzqs/gin-handler-wrapper/client"
+)
+
+type CreateUserReq struct {
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+type UserResp struct {
+    ID    int64  `json:"id"`
+    Name  string `json:"name"`
+    Email string `json:"email"`
+}
+
+func main() {
+    // 创建 resty 客户端
+    restyClient := resty.New()
+
+    // 创建类型安全的客户端处理器
+    createUser := client.NewClient[CreateUserReq, UserResp](
+        restyClient,
+        "POST",
+        "http://localhost:8080/users",
+    )
+
+    // 调用 API
+    user, err := createUser(context.Background(), CreateUserReq{
+        Name:  "Alice",
+        Email: "alice@example.com",
+    })
+    if err != nil {
+        panic(err)
+    }
+
+    fmt.Printf("Created user: %+v\n", user)
+}
+```
+
+## Server 端详细说明
+
+### 四种处理器类型
+
+#### 1. WrapHandler - 完整的输入输出
+
+```go
+// 创建用户：有输入有输出
+r.POST("/users", server.WrapHandler(
+    func(ctx context.Context, req CreateUserReq) (UserResp, error) {
+        // 业务逻辑
+        return user, nil
+    },
+))
+
+// 获取用户：URI 参数
+type GetUserReq struct {
+    ID int64 `uri:"id"`
+}
+
+r.GET("/users/:id", server.WrapHandler(
+    func(ctx context.Context, req GetUserReq) (UserResp, error) {
+        return getUserByID(req.ID)
+    },
+))
+```
+
+#### 2. WrapGetter - 只有输出
 
 ```go
 type HealthResp struct {
     Status string `json:"status"`
-    Time   string `json:"time"`
 }
 
-// 健康检查
-r.GET("/health", wrapper.WrapGetter(
+// 健康检查：无需输入参数
+r.GET("/health", server.WrapGetter(
     func(ctx context.Context) (HealthResp, error) {
-        return HealthResp{
-            Status: "ok",
-            Time:   time.Now().Format(time.RFC3339),
-        }, nil
-    },
-))
-
-// 获取用户列表
-type User struct {
-    ID   int64  `json:"id"`
-    Name string `json:"name"`
-}
-
-r.GET("/users", wrapper.WrapGetter(
-    func(ctx context.Context) ([]User, error) {
-        users := []User{
-            {ID: 1, Name: "Alice"},
-            {ID: 2, Name: "Bob"},
-        }
-        return users, nil
+        return HealthResp{Status: "ok"}, nil
     },
 ))
 ```
 
-### WrapConsumer - 只有输入
-
-适用于删除、更新等不需要返回数据的场景：
+#### 3. WrapConsumer - 只有输入
 
 ```go
 type DeleteUserReq struct {
-    ID int64 `uri:"id" binding:"required"`
+    ID int64 `uri:"id"`
 }
 
-// 删除用户
-r.DELETE("/users/:id", wrapper.WrapConsumer(
+// 删除用户：无需返回数据
+r.DELETE("/users/:id", server.WrapConsumer(
     func(ctx context.Context, req DeleteUserReq) error {
-        // 业务逻辑：删除用户
         return deleteUser(req.ID)
     },
 ))
-
-type UpdatePasswordReq struct {
-    UserID      int64  `uri:"id" binding:"required"`
-    OldPassword string `json:"old_password" binding:"required"`
-    NewPassword string `json:"new_password" binding:"required,min=6"`
-}
-
-// 更新密码
-r.PUT("/users/:id/password", wrapper.WrapConsumer(
-    func(ctx context.Context, req UpdatePasswordReq) error {
-        // 业务逻辑：更新密码
-        return updatePassword(req.UserID, req.OldPassword, req.NewPassword)
-    },
-))
 ```
 
-### WrapAction - 无输入输出
-
-适用于触发任务、执行操作等场景：
+#### 4. WrapAction - 无输入输出
 
 ```go
-// 触发数据同步任务
-r.POST("/tasks/sync", wrapper.WrapAction(
+// 触发任务：无输入无输出
+r.POST("/tasks/sync", server.WrapAction(
     func(ctx context.Context) error {
-        // 触发异步任务
         return triggerSyncTask()
     },
 ))
-
-// 清除缓存
-r.POST("/cache/clear", wrapper.WrapAction(
-    func(ctx context.Context) error {
-        return clearCache()
-    },
-))
 ```
-
-## 高级用法
 
 ### 自动参数绑定
 
@@ -162,194 +190,305 @@ r.POST("/cache/clear", wrapper.WrapAction(
 
 ```go
 type GetArticleReq struct {
-    ID       int64  `uri:"id"`           // 从 URI 参数绑定
-    Page     int    `form:"page"`        // 从 Query 参数绑定
-    PageSize int    `form:"page_size"`   // 从 Query 参数绑定
-    Token    string `header:"X-Token"`   // 从 Header 绑定
+    ID       int64  `uri:"id"`         // URI 参数
+    Page     int    `form:"page"`      // Query 参数
+    PageSize int    `form:"page_size"` // Query 参数
 }
 
 // GET /articles/:id?page=1&page_size=10
-r.GET("/articles/:id", wrapper.WrapHandler(
+r.GET("/articles/:id", server.WrapHandler(
     func(ctx context.Context, req GetArticleReq) (Article, error) {
-        // req.ID 来自 URI
-        // req.Page 和 req.PageSize 来自 Query
-        // req.Token 来自 Header
         return getArticle(req.ID, req.Page, req.PageSize)
     },
 ))
 ```
 
-### 自定义错误处理
+### 自定义选项
 
 ```go
-// 自定义错误处理器
+// 自定义错误处理
 customErrorHandler := func(c *gin.Context, err error) {
-    if errors.Is(err, ErrNotFound) {
-        c.JSON(http.StatusNotFound, gin.H{
-            "code":    "NOT_FOUND",
-            "message": err.Error(),
-        })
-        return
-    }
-
-    if errors.Is(err, ErrUnauthorized) {
-        c.JSON(http.StatusUnauthorized, gin.H{
-            "code":    "UNAUTHORIZED",
-            "message": err.Error(),
-        })
-        return
-    }
-
-    // 默认错误
-    c.JSON(http.StatusInternalServerError, gin.H{
-        "code":    "INTERNAL_ERROR",
+    c.JSON(http.StatusBadRequest, gin.H{
+        "code":    "ERROR",
         "message": err.Error(),
     })
 }
 
-// 使用自定义错误处理器
-r.GET("/users/:id", wrapper.WrapHandler(
-    func(ctx context.Context, req GetUserReq) (User, error) {
-        return getUserByID(req.ID)
-    },
-    wrapper.WithErrorHandler[GetUserReq, User](customErrorHandler),
+r.POST("/users", server.WrapHandler(
+    createUserHandler,
+    server.WithErrorHandler(customErrorHandler),
 ))
 ```
 
-### 自定义编码器
+## Client 端详细说明
+
+### 智能参数绑定
+
+Client 端支持通过结构体标签自动处理不同类型的参数：
+
+- `path` - 路径参数
+- `query` / `form` - Query 参数
+- `header` - 请求头
+- `json` - JSON 请求体
+
+#### 1. 路径参数
 
 ```go
-// 自定义响应编码器（例如：统一响应格式）
-customEncoder := func() wrapper.EncoderFunc[User] {
-    return func(c *gin.Context, output User) error {
-        c.JSON(http.StatusOK, gin.H{
-            "code":    "SUCCESS",
-            "message": "操作成功",
-            "data":    output,
-        })
-        return nil
-    }
+type GetUserReq struct {
+    ID int64 `path:"id"`
 }
 
-r.GET("/users/:id", wrapper.WrapHandler(
-    func(ctx context.Context, req GetUserReq) (User, error) {
-        return getUserByID(req.ID)
-    },
-    wrapper.WithEncoder(customEncoder()),
-))
+// GET /users/{id}
+getUser := client.NewClient[GetUserReq, UserResp](
+    restyClient,
+    "GET",
+    "http://localhost:8080/users/{id}",
+)
+
+user, err := getUser(ctx, GetUserReq{ID: 123})
 ```
 
-### 自定义解码器
+#### 2. Query 参数
 
 ```go
-// 自定义解码器（例如：从 Header 中提取用户信息）
-customDecoder := func() wrapper.DecoderFunc[MyRequest] {
-    return func(c *gin.Context) (MyRequest, error) {
-        var req MyRequest
-
-        // 先绑定标准参数
-        if err := c.ShouldBind(&req); err != nil {
-            return req, err
-        }
-
-        // 从 Header 提取用户信息
-        userID := c.GetHeader("X-User-ID")
-        req.UserID = userID
-
-        return req, nil
-    }
+type ListUsersReq struct {
+    Page     int `query:"page"`
+    PageSize int `query:"page_size"`
 }
 
-r.POST("/api/data", wrapper.WrapHandler(
-    func(ctx context.Context, req MyRequest) (MyResponse, error) {
-        // req.UserID 已经从 Header 中提取
-        return processData(req)
-    },
-    wrapper.WithDecoder(customDecoder()),
-))
+// GET /users?page=1&page_size=10
+listUsers := client.NewClient[ListUsersReq, []UserResp](
+    restyClient,
+    "GET",
+    "http://localhost:8080/users",
+)
+
+users, err := listUsers(ctx, ListUsersReq{
+    Page:     1,
+    PageSize: 10,
+})
+```
+
+#### 3. 请求头
+
+```go
+type AuthReq struct {
+    Token string `header:"Authorization"`
+    Name  string `json:"name"`
+}
+
+// 请求头 + JSON body
+createWithAuth := client.NewClient[AuthReq, UserResp](
+    restyClient,
+    "POST",
+    "http://localhost:8080/users",
+)
+
+user, err := createWithAuth(ctx, AuthReq{
+    Token: "Bearer token123",
+    Name:  "Alice",
+})
+```
+
+#### 4. 组合使用
+
+```go
+type UpdateArticleReq struct {
+    ID      int64  `path:"id"`              // 路径参数
+    Token   string `header:"Authorization"` // 请求头
+    Verbose bool   `query:"verbose"`        // Query 参数
+    Title   string `json:"title"`           // JSON body
+    Content string `json:"content"`         // JSON body
+}
+
+// PUT /articles/{id}?verbose=true
+// Authorization: Bearer token
+// Body: {"title": "...", "content": "..."}
+updateArticle := client.NewClient[UpdateArticleReq, Article](
+    restyClient,
+    "PUT",
+    "http://localhost:8080/articles/{id}",
+)
+
+article, err := updateArticle(ctx, UpdateArticleReq{
+    ID:      1,
+    Token:   "Bearer token123",
+    Verbose: true,
+    Title:   "New Title",
+    Content: "New Content",
+})
+```
+
+### 便捷函数
+
+#### NewGetter - GET 请求
+
+```go
+// GET /health
+healthCheck := client.NewGetter[HealthResp](
+    restyClient,
+    "http://localhost:8080/health",
+)
+
+health, err := healthCheck(ctx)
+```
+
+#### NewPoster - POST 请求（无返回值）
+
+```go
+// POST /users
+createUser := client.NewPoster[CreateUserReq](
+    restyClient,
+    "http://localhost:8080/users",
+)
+
+err := createUser(ctx, CreateUserReq{
+    Name:  "Alice",
+    Email: "alice@example.com",
+})
+```
+
+#### NewDeleter - DELETE 请求
+
+```go
+// DELETE /users/{id}
+deleteUser := client.NewDeleter(
+    restyClient,
+    "http://localhost:8080/users/{id}",
+)
+
+err := deleteUser(ctx)
+```
+
+### 自定义选项
+
+```go
+// 自定义请求编码器
+customEncoder := func(req *resty.Request, input any) error {
+    req.SetHeader("X-Custom", "value")
+    req.SetBody(input)
+    return nil
+}
+
+// 自定义响应解码器
+customDecoder := func(resp *resty.Response) (any, error) {
+    var result WrapperResponse
+    json.Unmarshal(resp.Body(), &result)
+    return result.Data, nil
+}
+
+// 自定义错误处理
+customErrorHandler := func(resp *resty.Response, err error) error {
+    if err != nil {
+        return err
+    }
+    if resp.StatusCode() >= 400 {
+        return fmt.Errorf("API error: %s", resp.Status())
+    }
+    return nil
+}
+
+handler := client.NewClient[Req, Resp](
+    restyClient,
+    "POST",
+    "/api/endpoint",
+    client.WithEncoder(customEncoder),
+    client.WithDecoder(customDecoder),
+    client.WithErrorHandler(customErrorHandler),
+)
+```
+
+## 完整示例
+
+查看 [examples/fullstack](./examples/fullstack) 目录，展示 Server 和 Client 的完整交互：
+
+- ✅ Server 端所有处理器类型示例
+- ✅ Client 端所有绑定方式示例
+- ✅ 自定义选项使用示例
+- ✅ 完整的 Server/Client 交互示例
+
+运行示例：
+
+```bash
+cd examples/fullstack
+go run main.go
 ```
 
 ## API 参考
 
-### 核心函数
+### Server 包
 
-#### WrapHandler[I, O any]
+#### 核心函数
 
-包装完整的输入输出处理器。
+- `WrapHandler[I, O any](h Handler[I, O], options...) gin.HandlerFunc`
+- `WrapGetter[O any](h GetterHandler[O], options...) gin.HandlerFunc`
+- `WrapConsumer[I any](h ConsumerHandler[I], options...) gin.HandlerFunc`
+- `WrapAction(h ActionHandler, options...) gin.HandlerFunc`
 
-```go
-func WrapHandler[I, O any](
-    h Handler[I, O],
-    options ...WrapHandlerOptionFunc[I, O],
-) gin.HandlerFunc
-```
+#### 选项函数
 
-#### WrapGetter[O any]
+- `WithDecoder(decoder DecoderFunc) WrapHandlerOptionFunc`
+- `WithEncoder(encoder EncoderFunc) WrapHandlerOptionFunc`
+- `WithErrorHandler(errHandler ErrorHandlerFunc) WrapHandlerOptionFunc`
 
-包装只有输出的处理器。
+### Client 包
 
-```go
-func WrapGetter[O any](
-    h func(ctx context.Context) (O, error),
-    options ...WrapHandlerOptionFunc[struct{}, O],
-) gin.HandlerFunc
-```
+#### 核心函数
 
-#### WrapConsumer[I any]
+- `NewClient[I, O any](client *resty.Client, method, url string, options...) ClientHandler[I, O]`
+- `NewGetter[O any](client *resty.Client, url string, options...) GetterHandler[O]`
+- `NewPoster[I any](client *resty.Client, url string, options...) PosterHandler[I]`
+- `NewPutter[I any](client *resty.Client, url string, options...) PutterHandler[I]`
+- `NewDeleter(client *resty.Client, url string, options...) DeleterHandler`
+- `NewAction(client *resty.Client, method, url string, options...) ActionHandler`
 
-包装只有输入的处理器。
+#### 选项函数
 
-```go
-func WrapConsumer[I any](
-    h func(ctx context.Context, args I) error,
-    options ...WrapHandlerOptionFunc[I, struct{}],
-) gin.HandlerFunc
-```
+- `WithEncoder(encoder RequestEncoderFunc) ClientOptionFunc`
+- `WithDecoder(decoder ResponseDecoderFunc) ClientOptionFunc`
+- `WithErrorHandler(errHandler ErrorHandlerFunc) ClientOptionFunc`
 
-#### WrapAction
+#### 支持的标签
 
-包装无输入输出的处理器。
+- `path:"paramName"` - URL 路径参数
+- `query:"paramName"` - URL Query 参数
+- `form:"paramName"` - URL Query 参数（别名）
+- `header:"HeaderName"` - HTTP 请求头
+- `json:"fieldName"` - JSON 请求体字段
 
-```go
-func WrapAction(
-    h func(ctx context.Context) error,
-    options ...WrapHandlerOptionFunc[struct{}, struct{}],
-) gin.HandlerFunc
-```
+## 测试覆盖率
 
-### 选项函数
+- Server 包：87.3%
+- Client 包：91.9%
 
-#### WithDecoder
+运行测试：
 
-自定义解码器。
+```bash
+# 测试所有包
+go test ./...
 
-```go
-func WithDecoder[I, O any](decoder DecoderFunc[I]) WrapHandlerOptionFunc[I, O]
-```
+# 测试 server 包
+go test -v -cover ./server
 
-#### WithEncoder
-
-自定义编码器。
-
-```go
-func WithEncoder[I, O any](encoder EncoderFunc[O]) WrapHandlerOptionFunc[I, O]
-```
-
-#### WithErrorHandler
-
-自定义错误处理器。
-
-```go
-func WithErrorHandler[I, O any](errHandler ErrorHandlerFunc) WrapHandlerOptionFunc[I, O]
+# 测试 client 包
+go test -v -cover ./client
 ```
 
 ## 最佳实践
+
+### Server 端
 
 1. **参数验证**：使用 Gin 的 `binding` 标签进行参数验证
 2. **错误处理**：定义业务错误类型，使用自定义错误处理器
 3. **响应格式**：使用自定义编码器统一响应格式
 4. **上下文传递**：使用 `context.Context` 传递请求级别的数据
-5. **泛型使用**：合理使用泛型，避免过度抽象
+
+### Client 端
+
+1. **标签使用**：合理使用 `path`、`query`、`header`、`json` 标签
+2. **类型安全**：充分利用泛型确保编译时类型安全
+3. **错误处理**：根据业务需求自定义错误处理逻辑
+4. **客户端复用**：创建并复用 resty.Client 实例
 
 ## 许可证
 

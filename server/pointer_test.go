@@ -1,4 +1,4 @@
-package ginhandlerwrapper
+package server
 
 import (
 	"context"
