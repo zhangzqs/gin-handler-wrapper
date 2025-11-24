@@ -324,7 +324,7 @@ func TestDefaultDecoder(t *testing.T) {
 func TestCustomDecoder(t *testing.T) {
 	r := gin.New()
 
-	customDecoder := func(c *gin.Context) (TestRequest, error) {
+	customDecoder := func(c *gin.Context) (any, error) {
 		return TestRequest{
 			Name:  "Custom",
 			Email: "custom@example.com",
@@ -335,7 +335,7 @@ func TestCustomDecoder(t *testing.T) {
 		func(ctx context.Context, req TestRequest) (TestRequest, error) {
 			return req, nil
 		},
-		WithDecoder[TestRequest, TestRequest](customDecoder),
+		WithDecoder(customDecoder),
 	))
 
 	req := httptest.NewRequest(http.MethodPost, "/users", nil)
@@ -362,11 +362,15 @@ func TestCustomEncoder(t *testing.T) {
 		Data    interface{} `json:"data"`
 	}
 
-	customEncoder := func(c *gin.Context, output TestResponse) error {
+	customEncoder := func(c *gin.Context, output any) error {
+		resp, ok := output.(TestResponse)
+		if !ok {
+			return errors.New("invalid type")
+		}
 		c.JSON(http.StatusOK, CustomResponse{
 			Code:    "SUCCESS",
 			Message: "操作成功",
-			Data:    output,
+			Data:    resp,
 		})
 		return nil
 	}
@@ -379,7 +383,7 @@ func TestCustomEncoder(t *testing.T) {
 				Email: req.Email,
 			}, nil
 		},
-		WithEncoder[TestRequest](customEncoder),
+		WithEncoder(customEncoder),
 	))
 
 	body := `{"name":"Alice","email":"alice@example.com"}`
@@ -420,7 +424,7 @@ func TestCustomErrorHandler(t *testing.T) {
 		func(ctx context.Context, req TestRequest) (TestResponse, error) {
 			return TestResponse{}, testErr
 		},
-		WithErrorHandler[TestRequest, TestResponse](customErrorHandler),
+		WithErrorHandler(customErrorHandler),
 	))
 
 	body := `{"name":"Alice","email":"alice@example.com"}`
@@ -441,11 +445,11 @@ func TestCustomErrorHandler(t *testing.T) {
 
 // TestMergeOptions tests the mergeOptions functionality
 func TestMergeOptions(t *testing.T) {
-	customDecoder := func(c *gin.Context) (TestRequest, error) {
+	customDecoder := func(c *gin.Context) (any, error) {
 		return TestRequest{Name: "Custom", Email: "custom@example.com"}, nil
 	}
 
-	customEncoder := func(c *gin.Context, output TestResponse) error {
+	customEncoder := func(c *gin.Context, output any) error {
 		c.JSON(http.StatusCreated, output)
 		return nil
 	}
@@ -454,10 +458,10 @@ func TestMergeOptions(t *testing.T) {
 		c.JSON(http.StatusBadRequest, gin.H{"custom_error": err.Error()})
 	}
 
-	opts := mergeOptions(
-		WithDecoder[TestRequest, TestResponse](customDecoder),
-		WithEncoder[TestRequest](customEncoder),
-		WithErrorHandler[TestRequest, TestResponse](customErrorHandler),
+	opts := mergeOptions[TestRequest, TestResponse](
+		WithDecoder(customDecoder),
+		WithEncoder(customEncoder),
+		WithErrorHandler(customErrorHandler),
 	)
 
 	assert.NotNil(t, opts.decoder)

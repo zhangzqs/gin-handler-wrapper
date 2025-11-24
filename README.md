@@ -13,10 +13,12 @@
 ## 安装
 
 ```bash
-go get github.com/your-username/gin-handler-wrapper
+go get github.com/zhangzqs/gin-handler-wrapper
 ```
 
 ## 快速开始
+
+> 💡 **完整示例**: 查看 [examples/complete](./examples/complete) 目录获取包含所有功能的完整可运行示例。
 
 ### 基础用法 - WrapHandler
 
@@ -28,7 +30,7 @@ package main
 import (
     "context"
     "github.com/gin-gonic/gin"
-    wrapper "github.com/your-username/gin-handler-wrapper"
+    wrapper "github.com/zhangzqs/gin-handler-wrapper"
 )
 
 type CreateUserReq struct {

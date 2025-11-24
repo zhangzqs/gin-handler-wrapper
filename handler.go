@@ -2,49 +2,51 @@ package ginhandlerwrapper
 
 import (
 	"context"
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-type DecoderFunc[I any] func(c *gin.Context) (I, error)
+type DecoderFunc func(c *gin.Context) (any, error)
 
-type EncoderFunc[O any] func(c *gin.Context, output O) error
+type EncoderFunc func(c *gin.Context, output any) error
 
 type ErrorHandlerFunc func(c *gin.Context, err error)
 
-type Handler[I, O any] func(ctx context.Context, args I) (O, error)
+// 错误定义
+var ErrDecoderReturnedWrongType = errors.New("decoder returned wrong type")
 
-type WrapHandlerOptions[I, O any] struct {
-	decoder      DecoderFunc[I]
-	encoder      EncoderFunc[O]
+type WrapHandlerOptions struct {
+	decoder      DecoderFunc
+	encoder      EncoderFunc
 	errorHandler ErrorHandlerFunc
 }
 
-type WrapHandlerOptionFunc[I, O any] func(*WrapHandlerOptions[I, O])
+type WrapHandlerOptionFunc func(*WrapHandlerOptions)
 
-func WithDecoder[I, O any](decoder DecoderFunc[I]) WrapHandlerOptionFunc[I, O] {
-	return func(opts *WrapHandlerOptions[I, O]) {
+func WithDecoder(decoder DecoderFunc) WrapHandlerOptionFunc {
+	return func(opts *WrapHandlerOptions) {
 		opts.decoder = decoder
 	}
 }
 
-func WithEncoder[I, O any](encoder EncoderFunc[O]) WrapHandlerOptionFunc[I, O] {
-	return func(opts *WrapHandlerOptions[I, O]) {
+func WithEncoder(encoder EncoderFunc) WrapHandlerOptionFunc {
+	return func(opts *WrapHandlerOptions) {
 		opts.encoder = encoder
 	}
 }
 
-func WithErrorHandler[I, O any](errHandler ErrorHandlerFunc) WrapHandlerOptionFunc[I, O] {
-	return func(opts *WrapHandlerOptions[I, O]) {
+func WithErrorHandler(errHandler ErrorHandlerFunc) WrapHandlerOptionFunc {
+	return func(opts *WrapHandlerOptions) {
 		opts.errorHandler = errHandler
 	}
 }
 
 // DefaultDecoder 默认解码器
 // 支持多种绑定方式：URI、Query、JSON、Form 等
-func DefaultDecoder[I any]() DecoderFunc[I] {
-	return func(c *gin.Context) (I, error) {
+func DefaultDecoder[I any]() DecoderFunc {
+	return func(c *gin.Context) (any, error) {
 		var args I
 
 		// 1. 绑定 URI 参数（仅当有 URI 参数时）
@@ -75,8 +77,8 @@ func DefaultDecoder[I any]() DecoderFunc[I] {
 
 // DefaultEncoder 默认编码器
 // 自动将响应序列化为 JSON，使用 200 状态码
-func DefaultEncoder[O any]() EncoderFunc[O] {
-	return func(c *gin.Context, output O) error {
+func DefaultEncoder[O any]() EncoderFunc {
+	return func(c *gin.Context, output any) error {
 		c.JSON(http.StatusOK, output)
 		return nil
 	}
@@ -93,16 +95,42 @@ func DefaultErrorHandler() ErrorHandlerFunc {
 	}
 }
 
-func wrapHandler[I, O any](
+func mergeOptions[I, O any](
+	options ...WrapHandlerOptionFunc,
+) *WrapHandlerOptions {
+	opts := WrapHandlerOptions{
+		decoder:      DefaultDecoder[I](),
+		encoder:      DefaultEncoder[O](),
+		errorHandler: DefaultErrorHandler(),
+	}
+	for _, opt := range options {
+		opt(&opts)
+	}
+	return &opts
+}
+
+type Handler[I, O any] func(ctx context.Context, args I) (O, error)
+
+func WrapHandler[I, O any](
 	h Handler[I, O],
-	decoder DecoderFunc[I],
-	encoder EncoderFunc[O],
-	errHandler ErrorHandlerFunc,
+	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
+	opts := mergeOptions[I, O](options...)
+	decoder := opts.decoder
+	encoder := opts.encoder
+	errHandler := opts.errorHandler
+
 	return func(c *gin.Context) {
-		args, err := decoder(c)
+		argAny, err := decoder(c)
 		if err != nil {
 			errHandler(c, err)
+			return
+		}
+
+		// 类型断言
+		args, ok := argAny.(I)
+		if !ok {
+			errHandler(c, ErrDecoderReturnedWrongType)
 			return
 		}
 
@@ -119,55 +147,39 @@ func wrapHandler[I, O any](
 	}
 }
 
-func mergeOptions[I, O any](
-	options ...WrapHandlerOptionFunc[I, O],
-) *WrapHandlerOptions[I, O] {
-	opts := WrapHandlerOptions[I, O]{
-		decoder:      DefaultDecoder[I](),
-		encoder:      DefaultEncoder[O](),
-		errorHandler: DefaultErrorHandler(),
-	}
-	for _, opt := range options {
-		opt(&opts)
-	}
-	return &opts
-}
-
-func WrapHandler[I, O any](
-	h Handler[I, O],
-	options ...WrapHandlerOptionFunc[I, O],
-) gin.HandlerFunc {
-	opts := mergeOptions(options...)
-	return wrapHandler(h, opts.decoder, opts.encoder, opts.errorHandler)
-}
+type ActionHandler func(ctx context.Context) error
 
 // WrapAction 包装无输入输出的处理器
 // 适用场景：触发任务、执行操作等不需要请求参数和响应数据的场景
 func WrapAction(
-	h func(ctx context.Context) error,
-	options ...WrapHandlerOptionFunc[struct{}, struct{}],
+	h ActionHandler,
+	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, _ struct{}) (struct{}, error) {
 		return struct{}{}, h(ctx)
 	}, options...)
 }
 
+type GetterHandler[O any] func(ctx context.Context) (O, error)
+
 // WrapGetter 包装只有输出的处理器
 // 适用场景：获取数据、健康检查等不需要请求参数的查询场景
 func WrapGetter[O any](
-	h func(ctx context.Context) (O, error),
-	options ...WrapHandlerOptionFunc[struct{}, O],
+	h GetterHandler[O],
+	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, _ struct{}) (O, error) {
 		return h(ctx)
 	}, options...)
 }
 
+type ConsumerHandler[I any] func(ctx context.Context, args I) error
+
 // WrapConsumer 包装只有输入的处理器
 // 适用场景：删除操作、更新操作等不需要返回数据的场景
 func WrapConsumer[I any](
-	h func(ctx context.Context, args I) error,
-	options ...WrapHandlerOptionFunc[I, struct{}],
+	h ConsumerHandler[I],
+	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, args I) (struct{}, error) {
 		return struct{}{}, h(ctx, args)
