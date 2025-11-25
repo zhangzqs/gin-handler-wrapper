@@ -4,7 +4,6 @@ go 1.24.4
 
 require (
 	github.com/gin-gonic/gin v1.11.0
-	github.com/go-resty/resty/v2 v2.17.0
 	github.com/stretchr/testify v1.11.1
 	github.com/zhangzqs/gin-handler-wrapper v0.0.0
 )
