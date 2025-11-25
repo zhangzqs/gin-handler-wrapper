@@ -29,8 +29,7 @@ func TestServiceInterface(t *testing.T) {
 	// 创建HTTP服务器和客户端（RPC实现）
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	h := handler.NewHandler(directSvc)
-	h.RegisterRouter(r)
+	handler.RegisterRouter(r, directSvc)
 
 	server := httptest.NewServer(r)
 	defer server.Close()

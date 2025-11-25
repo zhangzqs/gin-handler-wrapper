@@ -22,11 +22,10 @@ func TestIntegration(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	dataStore := store.GetStore()
 	svc := serviceimpl.NewService(dataStore)
-	h := handler.NewHandler(svc)
 
 	// 创建测试服务器
 	r := gin.New()
-	h.RegisterRouter(r)
+	handler.RegisterRouter(r, svc)
 	server := httptest.NewServer(r)
 	defer server.Close()
 
@@ -130,11 +129,10 @@ func TestIntegrationErrorHandling(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	dataStore := store.GetStore()
 	svc := serviceimpl.NewService(dataStore)
-	h := handler.NewHandler(svc)
 
 	// 创建测试服务器
 	r := gin.New()
-	h.RegisterRouter(r)
+	handler.RegisterRouter(r, svc)
 	server := httptest.NewServer(r)
 	defer server.Close()
 

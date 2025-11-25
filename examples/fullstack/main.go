@@ -17,12 +17,9 @@ func main() {
 	// 创建业务服务实现
 	svc := serviceimpl.NewService(dataStore)
 
-	// 创建HTTP处理器（适配器层）
-	h := handler.NewHandler(svc)
-
 	// 设置路由
 	r := gin.Default()
-	h.RegisterRouter(r)
+	handler.RegisterRouter(r, svc)
 
 	// 启动服务器
 	port := "8080"
