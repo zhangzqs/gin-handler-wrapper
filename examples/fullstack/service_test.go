@@ -15,6 +15,7 @@ import (
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/serviceimpl"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/store"
+	"resty.dev/v3"
 )
 
 // TestServiceInterface 测试Service接口的不同实现
@@ -34,23 +35,23 @@ func TestServiceInterface(t *testing.T) {
 	server := httptest.NewServer(r)
 	defer server.Close()
 
-	rpcClient := apiclient.NewClient(server.URL)
+	rpcClient := apiclient.NewClient(resty.New().SetBaseURL(server.URL))
 
 	// 测试两种实现
 	testCases := []struct {
-		name   string
-		svc    service.Service
-		isRPC  bool
+		name  string
+		svc   service.Service
+		isRPC bool
 	}{
 		{
-			name:   "DirectCall",
-			svc:    directSvc,
-			isRPC:  false,
+			name:  "DirectCall",
+			svc:   directSvc,
+			isRPC: false,
 		},
 		{
-			name:   "RPCCall",
-			svc:    rpcClient,
-			isRPC:  true,
+			name:  "RPCCall",
+			svc:   rpcClient,
+			isRPC: true,
 		},
 	}
 

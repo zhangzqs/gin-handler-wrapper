@@ -1,4 +1,4 @@
-package client
+package restyclient
 
 import (
 	"context"
@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"resty.dev/v3"
 )
 
 // TestPathParams 测试路径参数绑定

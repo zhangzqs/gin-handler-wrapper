@@ -1,4 +1,4 @@
-package client
+package restyclient
 
 import (
 	"context"
@@ -8,7 +8,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/go-resty/resty/v2"
+	"github.com/zhangzqs/gin-handler-wrapper/common"
+	"resty.dev/v3"
 )
 
 type RequestEncoderFunc func(req *resty.Request, input any) error
@@ -165,14 +166,14 @@ func DefaultRequestEncoder[I any]() RequestEncoderFunc {
 func DefaultResponseDecoder[O any]() ResponseDecoderFunc {
 	return func(resp *resty.Response) (any, error) {
 		var result O
-
-		// 如果响应体为空，直接返回零值
-		if len(resp.Body()) == 0 {
+		// resty v3: resp.Bytes() 替代了 v2 的 resp.Body()
+		bodyBytes := resp.Bytes()
+		if len(bodyBytes) == 0 {
+			// 空响应体，返回零值
 			return result, nil
 		}
-
-		if err := json.Unmarshal(resp.Body(), &result); err != nil {
-			return result, err
+		if err := json.Unmarshal(bodyBytes, &result); err != nil {
+			return nil, err
 		}
 		return result, nil
 	}
@@ -213,8 +214,6 @@ type Client[I, O any] struct {
 	options     *ClientOptions
 }
 
-type ClientHandler[I, O any] func(ctx context.Context, input I) (O, error)
-
 // NewClient 创建一个通用的 HTTP 客户端
 // 支持完全自定义的输入输出类型
 func NewClient[I, O any](
@@ -222,7 +221,7 @@ func NewClient[I, O any](
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) ClientHandler[I, O] {
+) common.HandlerFunc[I, O] {
 	opts := mergeOptions[I, O](options...)
 
 	return func(ctx context.Context, input I) (O, error) {
@@ -259,8 +258,6 @@ func NewClient[I, O any](
 	}
 }
 
-type ActionHandler func(ctx context.Context) error
-
 // NewAction 创建无输入输出的客户端处理器
 // 适用场景：触发任务、执行操作等不需要请求参数和响应数据的场景
 func NewAction(
@@ -268,7 +265,7 @@ func NewAction(
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) ActionHandler {
+) common.ActionHandlerFunc {
 	handler := NewClient[struct{}, struct{}](restyClient, method, url, options...)
 	return func(ctx context.Context) error {
 		_, err := handler(ctx, struct{}{})
@@ -276,64 +273,31 @@ func NewAction(
 	}
 }
 
-type GetterHandler[O any] func(ctx context.Context) (O, error)
-
 // NewGetter 创建只有输出的客户端处理器
 // 适用场景：获取数据、健康检查等不需要请求参数的查询场景
 func NewGetter[O any](
 	restyClient *resty.Client,
+	method string,
 	url string,
 	options ...ClientOptionFunc,
-) GetterHandler[O] {
-	handler := NewClient[struct{}, O](restyClient, "GET", url, options...)
+) common.GetterHandlerFunc[O] {
+	handler := NewClient[struct{}, O](restyClient, method, url, options...)
 	return func(ctx context.Context) (O, error) {
 		return handler(ctx, struct{}{})
 	}
 }
 
-type PosterHandler[I any] func(ctx context.Context, input I) error
-
-// NewPoster 创建只有输入的客户端处理器
-// 适用场景：提交数据、创建资源等不需要返回数据的场景
-func NewPoster[I any](
+// NewConsumer 创建只有输入的客户端处理器
+// 适用场景：删除操作、更新操作等不需要返回数据的场景
+func NewConsumer[I any](
 	restyClient *resty.Client,
+	method string,
 	url string,
 	options ...ClientOptionFunc,
-) PosterHandler[I] {
-	handler := NewClient[I, struct{}](restyClient, "POST", url, options...)
-	return func(ctx context.Context, input I) error {
-		_, err := handler(ctx, input)
+) common.ConsumerHandlerFunc[I] {
+	handler := NewClient[I, struct{}](restyClient, method, url, options...)
+	return func(ctx context.Context, args I) error {
+		_, err := handler(ctx, args)
 		return err
-	}
-}
-
-type PutterHandler[I any] func(ctx context.Context, input I) error
-
-// NewPutter 创建只有输入的客户端处理器（PUT）
-// 适用场景：更新资源等不需要返回数据的场景
-func NewPutter[I any](
-	restyClient *resty.Client,
-	url string,
-	options ...ClientOptionFunc,
-) PutterHandler[I] {
-	handler := NewClient[I, struct{}](restyClient, "PUT", url, options...)
-	return func(ctx context.Context, input I) error {
-		_, err := handler(ctx, input)
-		return err
-	}
-}
-
-type DeleterHandler func(ctx context.Context) error
-
-// NewDeleter 创建无输入输出的删除处理器
-// 适用场景：删除资源等操作
-func NewDeleter(
-	restyClient *resty.Client,
-	url string,
-	options ...ClientOptionFunc,
-) DeleterHandler {
-	action := NewAction(restyClient, "DELETE", url, options...)
-	return func(ctx context.Context) error {
-		return action(ctx)
 	}
 }

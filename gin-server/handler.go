@@ -1,4 +1,4 @@
-package server
+package ginserver
 
 import (
 	"context"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/zhangzqs/gin-handler-wrapper/common"
 )
 
 type DecoderFunc func(c *gin.Context) (any, error)
@@ -109,10 +110,8 @@ func mergeOptions[I, O any](
 	return &opts
 }
 
-type Handler[I, O any] func(ctx context.Context, args I) (O, error)
-
 func WrapHandler[I, O any](
-	h Handler[I, O],
+	h common.HandlerFunc[I, O],
 	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	opts := mergeOptions[I, O](options...)
@@ -147,12 +146,10 @@ func WrapHandler[I, O any](
 	}
 }
 
-type ActionHandler func(ctx context.Context) error
-
 // WrapAction 包装无输入输出的处理器
 // 适用场景：触发任务、执行操作等不需要请求参数和响应数据的场景
 func WrapAction(
-	h ActionHandler,
+	h common.ActionHandlerFunc,
 	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, _ struct{}) (struct{}, error) {
@@ -160,12 +157,10 @@ func WrapAction(
 	}, options...)
 }
 
-type GetterHandler[O any] func(ctx context.Context) (O, error)
-
 // WrapGetter 包装只有输出的处理器
 // 适用场景：获取数据、健康检查等不需要请求参数的查询场景
 func WrapGetter[O any](
-	h GetterHandler[O],
+	h common.GetterHandlerFunc[O],
 	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, _ struct{}) (O, error) {
@@ -173,12 +168,10 @@ func WrapGetter[O any](
 	}, options...)
 }
 
-type ConsumerHandler[I any] func(ctx context.Context, args I) error
-
 // WrapConsumer 包装只有输入的处理器
 // 适用场景：删除操作、更新操作等不需要返回数据的场景
 func WrapConsumer[I any](
-	h ConsumerHandler[I],
+	h common.ConsumerHandlerFunc[I],
 	options ...WrapHandlerOptionFunc,
 ) gin.HandlerFunc {
 	return WrapHandler(func(ctx context.Context, args I) (struct{}, error) {

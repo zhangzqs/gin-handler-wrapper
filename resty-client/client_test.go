@@ -1,4 +1,4 @@
-package client
+package restyclient
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
+	"resty.dev/v3"
 )
 
 // Test types
@@ -109,7 +109,7 @@ func TestNewGetter(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewGetter[HealthResponse](client, server.URL+"/health")
+		handler := NewGetter[HealthResponse](client, http.MethodGet, server.URL+"/health")
 
 		result, err := handler(context.Background())
 
@@ -124,7 +124,7 @@ func TestNewGetter(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewGetter[HealthResponse](client, server.URL+"/health")
+		handler := NewGetter[HealthResponse](client, http.MethodGet, server.URL+"/health")
 
 		_, err := handler(context.Background())
 
@@ -146,7 +146,7 @@ func TestNewPoster(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewPoster[TestRequest](client, server.URL+"/users")
+		handler := NewConsumer[TestRequest](client, http.MethodPost, server.URL+"/users")
 
 		err := handler(context.Background(), TestRequest{
 			Name:  "Alice",
@@ -163,7 +163,7 @@ func TestNewPoster(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewPoster[TestRequest](client, server.URL+"/users")
+		handler := NewConsumer[TestRequest](client, http.MethodPost, server.URL+"/users")
 
 		err := handler(context.Background(), TestRequest{
 			Name:  "Alice",
@@ -187,7 +187,7 @@ func TestNewPutter(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewPutter[TestRequest](client, server.URL+"/users/1")
+		handler := NewConsumer[TestRequest](client, http.MethodPut, server.URL+"/users/1")
 
 		err := handler(context.Background(), TestRequest{
 			Name:  "Alice",
@@ -208,7 +208,7 @@ func TestNewDeleter(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewDeleter(client, server.URL+"/users/1")
+		handler := NewAction(client, http.MethodDelete, server.URL+"/users/1")
 
 		err := handler(context.Background())
 
@@ -222,7 +222,7 @@ func TestNewDeleter(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewDeleter(client, server.URL+"/users/999")
+		handler := NewAction(client, http.MethodDelete, server.URL+"/users/999")
 
 		err := handler(context.Background())
 
@@ -313,7 +313,7 @@ func TestCustomDecoder(t *testing.T) {
 
 	customDecoder := func(resp *resty.Response) (any, error) {
 		var wrapper WrapperResponse
-		if err := json.Unmarshal(resp.Body(), &wrapper); err != nil {
+		if err := json.Unmarshal(resp.Bytes(), &wrapper); err != nil {
 			return TestResponse{}, err
 		}
 		return wrapper.Data, nil
@@ -356,7 +356,7 @@ func TestCustomErrorHandler(t *testing.T) {
 		}
 		if resp.IsError() {
 			var errResp ErrorResponse
-			json.Unmarshal(resp.Body(), &errResp)
+			json.Unmarshal(resp.Bytes(), &errResp)
 			return errors.New(errResp.Code + ": " + errResp.Message)
 		}
 		return nil
@@ -419,7 +419,7 @@ func TestPointerTypes(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewGetter[*HealthResponse](client, server.URL+"/health")
+		handler := NewGetter[*HealthResponse](client, http.MethodGet, server.URL+"/health")
 
 		result, err := handler(context.Background())
 
@@ -438,7 +438,7 @@ func TestPointerTypes(t *testing.T) {
 		defer server.Close()
 
 		client := resty.New()
-		handler := NewPoster[*TestRequest](client, server.URL+"/users")
+		handler := NewConsumer[*TestRequest](client, http.MethodPost, server.URL+"/users")
 
 		err := handler(context.Background(), &TestRequest{
 			Name:  "Alice",

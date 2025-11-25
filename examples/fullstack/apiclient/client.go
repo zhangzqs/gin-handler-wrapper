@@ -2,93 +2,70 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 
-	"github.com/go-resty/resty/v2"
-	"github.com/zhangzqs/gin-handler-wrapper/client"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
+	restyclient "github.com/zhangzqs/gin-handler-wrapper/resty-client"
+	"resty.dev/v3"
 )
 
 // ==================== API Client 结构体（实现 service 接口）====================
 
 // Client API客户端
 type Client struct {
-	baseURL     string
-	restyClient *resty.Client
-}
-
-// NewClient 创建新的API客户端
-func NewClient(baseURL string) *Client {
-	return &Client{
-		baseURL:     baseURL,
-		restyClient: resty.New().SetBaseURL(baseURL),
-	}
+	cli *resty.Client
 }
 
 // 确保 Client 实现了所有服务接口
-var (
-	_ service.Service = (*Client)(nil)
-)
+var _ service.Service = (*Client)(nil)
+
+// NewClient 创建新的API客户端
+func NewClient(cli *resty.Client) *Client {
+	return &Client{cli: cli}
+}
 
 // CreateUser 创建用户
 func (c *Client) CreateUser(ctx context.Context, req model.CreateUserRequest) (model.User, error) {
-	handler := client.NewClient[model.CreateUserRequest, model.User](
-		c.restyClient,
-		"POST",
-		"/users",
-	)
-	return handler(ctx, req)
+	return restyclient.NewClient[model.CreateUserRequest, model.User](
+		c.cli, http.MethodPost, "/users",
+	)(ctx, req)
 }
 
 // GetUser 获取用户
 func (c *Client) GetUser(ctx context.Context, req model.GetUserRequest) (model.User, error) {
-	handler := client.NewClient[model.GetUserRequest, model.User](
-		c.restyClient,
-		"GET",
-		"/users/{id}",
-	)
-	return handler(ctx, req)
+	return restyclient.NewClient[model.GetUserRequest, model.User](
+		c.cli, http.MethodGet, "/users/{id}",
+	)(ctx, req)
 }
 
 // ListUsers 获取用户列表
 func (c *Client) ListUsers(ctx context.Context, req model.ListUsersRequest) (model.ListUsersResponse, error) {
-	handler := client.NewClient[model.ListUsersRequest, model.ListUsersResponse](
-		c.restyClient,
-		"GET",
-		"/users",
-	)
-	return handler(ctx, req)
+	return restyclient.NewClient[model.ListUsersRequest, model.ListUsersResponse](
+		c.cli, http.MethodGet, "/users",
+	)(ctx, req)
 }
 
 // DeleteUser 删除用户
 func (c *Client) DeleteUser(ctx context.Context, req model.DeleteUserRequest) error {
-	handler := client.NewClient[model.DeleteUserRequest, struct{}](
-		c.restyClient,
-		"DELETE",
-		"/users/{id}",
-	)
-	_, err := handler(ctx, req)
-	return err
+	return restyclient.NewConsumer[model.DeleteUserRequest](
+		c.cli, http.MethodDelete, "/users/{id}",
+	)(ctx, req)
 }
 
 // UpdateArticle 更新文章
 func (c *Client) UpdateArticle(ctx context.Context, req model.UpdateArticleRequest) (model.Article, error) {
-	handler := client.NewClient[model.UpdateArticleRequest, model.Article](
-		c.restyClient,
-		"PUT",
-		"/articles/{id}",
-	)
-	return handler(ctx, req)
+	return restyclient.NewClient[model.UpdateArticleRequest, model.Article](
+		c.cli, http.MethodPut, "/articles/{id}",
+	)(ctx, req)
 }
 
 // Health 健康检查
 func (c *Client) Health(ctx context.Context) (model.HealthResponse, error) {
-	handler := client.NewGetter[model.HealthResponse](c.restyClient, "/health")
-	return handler(ctx)
+	return restyclient.NewGetter[model.HealthResponse](c.cli, http.MethodGet, "/health")(ctx)
 }
 
 // TriggerTask 触发任务
 func (c *Client) TriggerTask(ctx context.Context) error {
-	handler := client.NewAction(c.restyClient, "POST", "/tasks")
-	return handler(ctx)
+	return restyclient.NewAction(c.cli, http.MethodPost, "/tasks")(ctx)
 }

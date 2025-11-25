@@ -13,6 +13,7 @@ import (
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/serviceimpl"
 	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/store"
+	"resty.dev/v3"
 )
 
 // TestIntegration 集成测试：测试完整的HTTP请求-响应流程
@@ -30,7 +31,7 @@ func TestIntegration(t *testing.T) {
 	defer server.Close()
 
 	// 创建客户端
-	client := apiclient.NewClient(server.URL)
+	client := apiclient.NewClient(resty.New().SetBaseURL(server.URL))
 	ctx := context.Background()
 
 	// 执行集成测试（类似demo.go的逻辑）
@@ -138,7 +139,7 @@ func TestIntegrationErrorHandling(t *testing.T) {
 	defer server.Close()
 
 	// 创建客户端
-	client := apiclient.NewClient(server.URL)
+	client := apiclient.NewClient(resty.New().SetBaseURL(server.URL))
 	ctx := context.Background()
 
 	t.Run("GetNonExistentUser", func(t *testing.T) {
