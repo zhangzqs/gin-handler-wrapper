@@ -1,6 +1,6 @@
-# Gin Handler Wrapper
+# Go Typed RPC
 
-一个类型安全的 Gin 框架扩展库，包含 **Server 端处理器包装**（gin-server）和 **Client 端请求构建**（resty-client）两大功能，使用 Go 泛型提供优雅的请求/响应处理。
+一个类型安全的 RPC 框架，包含 **Server 端处理器包装**（gin-server）和 **Client 端请求构建**（resty-client）两大功能，使用 Go 泛型提供优雅的请求/响应处理。基于统一的 Handler 抽象，未来可扩展支持多种协议（HTTP、gRPC、WebSocket 等）。
 
 ## 项目结构
 
