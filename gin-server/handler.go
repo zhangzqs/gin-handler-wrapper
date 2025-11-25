@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhangzqs/gin-handler-wrapper/handler"
+	"github.com/zhangzqs/go-typed-rpc/handler"
 )
 
 type DecoderFunc func(c *gin.Context) (any, error)

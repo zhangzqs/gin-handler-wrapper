@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/zhangzqs/gin-handler-wrapper/handler"
+	"github.com/zhangzqs/go-typed-rpc/handler"
 	"resty.dev/v3"
 )
 

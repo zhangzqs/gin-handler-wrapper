@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
 )
 
 // ==================== 模拟数据存储层 ====================

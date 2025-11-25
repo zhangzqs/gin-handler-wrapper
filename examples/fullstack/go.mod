@@ -1,11 +1,11 @@
-module github.com/zhangzqs/gin-handler-wrapper/examples/fullstack
+module github.com/zhangzqs/go-typed-rpc/examples/fullstack
 
 go 1.24.4
 
 require (
 	github.com/gin-gonic/gin v1.11.0
 	github.com/stretchr/testify v1.11.1
-	github.com/zhangzqs/gin-handler-wrapper v0.0.0
+	github.com/zhangzqs/go-typed-rpc v0.0.0
 )
 
 require (
@@ -46,4 +46,4 @@ require (
 	resty.dev/v3 v3.0.0-beta.4
 )
 
-replace github.com/zhangzqs/gin-handler-wrapper => ../..
+replace github.com/zhangzqs/go-typed-rpc => ../..

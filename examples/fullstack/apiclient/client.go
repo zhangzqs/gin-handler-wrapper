@@ -4,9 +4,9 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
-	restyclient "github.com/zhangzqs/gin-handler-wrapper/resty-client"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/service"
+	restyclient "github.com/zhangzqs/go-typed-rpc/resty-client"
 	"resty.dev/v3"
 )
 

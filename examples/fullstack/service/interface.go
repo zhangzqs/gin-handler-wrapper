@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
 )
 
 // Service 综合业务服务接口

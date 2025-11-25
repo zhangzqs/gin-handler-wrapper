@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/handler"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/serviceimpl"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/store"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/handler"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/serviceimpl"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/store"
 )
 
 func main() {

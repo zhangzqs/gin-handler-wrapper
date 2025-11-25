@@ -9,12 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/apiclient"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/handler"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/serviceimpl"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/store"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/apiclient"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/handler"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/service"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/serviceimpl"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/store"
 	"resty.dev/v3"
 )
 

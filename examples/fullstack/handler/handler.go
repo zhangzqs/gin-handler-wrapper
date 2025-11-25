@@ -5,9 +5,9 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
-	ginserver "github.com/zhangzqs/gin-handler-wrapper/gin-server"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/service"
+	ginserver "github.com/zhangzqs/go-typed-rpc/gin-server"
 )
 
 // ==================== 自定义错误处理器 ====================

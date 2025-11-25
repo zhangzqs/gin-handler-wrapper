@@ -5,9 +5,9 @@ import (
 	"log"
 	"time"
 
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/model"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/service"
-	"github.com/zhangzqs/gin-handler-wrapper/examples/fullstack/store"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/model"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/service"
+	"github.com/zhangzqs/go-typed-rpc/examples/fullstack/store"
 )
 
 // ==================== 业务逻辑实现（纯业务逻辑，不依赖HTTP）====================

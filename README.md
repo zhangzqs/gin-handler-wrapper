@@ -28,7 +28,7 @@
 ## 安装
 
 ```bash
-go get github.com/zhangzqs/gin-handler-wrapper
+go get github.com/zhangzqs/go-typed-rpc
 ```
 
 ## 快速开始
@@ -43,7 +43,7 @@ package main
 import (
     "context"
     "github.com/gin-gonic/gin"
-    ginserver "github.com/zhangzqs/gin-handler-wrapper/gin-server"
+    ginserver "github.com/zhangzqs/go-typed-rpc/gin-server"
 )
 
 type CreateUserReq struct {
@@ -84,7 +84,7 @@ package main
 import (
     "context"
     "fmt"
-    restyclient "github.com/zhangzqs/gin-handler-wrapper/resty-client"
+    restyclient "github.com/zhangzqs/go-typed-rpc/resty-client"
     "resty.dev/v3"
 )
 

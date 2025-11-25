@@ -1,4 +1,4 @@
-module github.com/zhangzqs/gin-handler-wrapper
+module github.com/zhangzqs/go-typed-rpc
 
 go 1.24.4
 
