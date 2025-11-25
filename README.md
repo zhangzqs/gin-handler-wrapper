@@ -1,6 +1,13 @@
 # Gin Handler Wrapper
 
-一个类型安全的 Gin 框架扩展库，包含 **Server 端处理器包装** 和 **Client 端请求构建** 两大功能，使用 Go 泛型提供优雅的请求/响应处理。
+一个类型安全的 Gin 框架扩展库，包含 **Server 端处理器包装**（gin-server）和 **Client 端请求构建**（resty-client）两大功能，使用 Go 泛型提供优雅的请求/响应处理。
+
+## 项目结构
+
+- **gin-server**: Gin 服务端请求包装功能（包名：`ginserver`）
+- **resty-client**: Resty 客户端请求处理功能（包名：`restyclient`，基于 `resty.dev/v3`）
+- **handler**: 通用处理函数类型定义
+- **examples/fullstack**: 完整的服务端/客户端交互示例
 
 ## 特性
 
@@ -36,7 +43,7 @@ package main
 import (
     "context"
     "github.com/gin-gonic/gin"
-    "github.com/zhangzqs/gin-handler-wrapper/server"
+    ginserver "github.com/zhangzqs/gin-handler-wrapper/gin-server"
 )
 
 type CreateUserReq struct {
@@ -54,7 +61,7 @@ func main() {
     r := gin.Default()
 
     // 使用 WrapHandler 包装业务逻辑
-    r.POST("/users", server.WrapHandler(
+    r.POST("/users", ginserver.WrapHandler(
         func(ctx context.Context, req CreateUserReq) (UserResp, error) {
             user := UserResp{
                 ID:    1,
@@ -77,8 +84,8 @@ package main
 import (
     "context"
     "fmt"
-    "github.com/go-resty/resty/v2"
-    "github.com/zhangzqs/gin-handler-wrapper/client"
+    restyclient "github.com/zhangzqs/gin-handler-wrapper/resty-client"
+    "resty.dev/v3"
 )
 
 type CreateUserReq struct {
@@ -97,7 +104,7 @@ func main() {
     restyClient := resty.New()
 
     // 创建类型安全的客户端处理器
-    createUser := client.NewClient[CreateUserReq, UserResp](
+    createUser := restyclient.NewClient[CreateUserReq, UserResp](
         restyClient,
         "POST",
         "http://localhost:8080/users",
@@ -124,7 +131,7 @@ func main() {
 
 ```go
 // 创建用户：有输入有输出
-r.POST("/users", server.WrapHandler(
+r.POST("/users", ginserver.WrapHandler(
     func(ctx context.Context, req CreateUserReq) (UserResp, error) {
         // 业务逻辑
         return user, nil
@@ -136,7 +143,7 @@ type GetUserReq struct {
     ID int64 `uri:"id"`
 }
 
-r.GET("/users/:id", server.WrapHandler(
+r.GET("/users/:id", ginserver.WrapHandler(
     func(ctx context.Context, req GetUserReq) (UserResp, error) {
         return getUserByID(req.ID)
     },
@@ -151,7 +158,7 @@ type HealthResp struct {
 }
 
 // 健康检查：无需输入参数
-r.GET("/health", server.WrapGetter(
+r.GET("/health", ginserver.WrapGetter(
     func(ctx context.Context) (HealthResp, error) {
         return HealthResp{Status: "ok"}, nil
     },
@@ -166,7 +173,7 @@ type DeleteUserReq struct {
 }
 
 // 删除用户：无需返回数据
-r.DELETE("/users/:id", server.WrapConsumer(
+r.DELETE("/users/:id", ginserver.WrapConsumer(
     func(ctx context.Context, req DeleteUserReq) error {
         return deleteUser(req.ID)
     },
@@ -177,7 +184,7 @@ r.DELETE("/users/:id", server.WrapConsumer(
 
 ```go
 // 触发任务：无输入无输出
-r.POST("/tasks/sync", server.WrapAction(
+r.POST("/tasks/sync", ginserver.WrapAction(
     func(ctx context.Context) error {
         return triggerSyncTask()
     },
@@ -196,7 +203,7 @@ type GetArticleReq struct {
 }
 
 // GET /articles/:id?page=1&page_size=10
-r.GET("/articles/:id", server.WrapHandler(
+r.GET("/articles/:id", ginserver.WrapHandler(
     func(ctx context.Context, req GetArticleReq) (Article, error) {
         return getArticle(req.ID, req.Page, req.PageSize)
     },
@@ -214,9 +221,9 @@ customErrorHandler := func(c *gin.Context, err error) {
     })
 }
 
-r.POST("/users", server.WrapHandler(
+r.POST("/users", ginserver.WrapHandler(
     createUserHandler,
-    server.WithErrorHandler(customErrorHandler),
+    ginserver.WithErrorHandler(customErrorHandler),
 ))
 ```
 
@@ -239,7 +246,7 @@ type GetUserReq struct {
 }
 
 // GET /users/{id}
-getUser := client.NewClient[GetUserReq, UserResp](
+getUser := restyclient.NewClient[GetUserReq, UserResp](
     restyClient,
     "GET",
     "http://localhost:8080/users/{id}",
@@ -257,7 +264,7 @@ type ListUsersReq struct {
 }
 
 // GET /users?page=1&page_size=10
-listUsers := client.NewClient[ListUsersReq, []UserResp](
+listUsers := restyclient.NewClient[ListUsersReq, []UserResp](
     restyClient,
     "GET",
     "http://localhost:8080/users",
@@ -278,7 +285,7 @@ type AuthReq struct {
 }
 
 // 请求头 + JSON body
-createWithAuth := client.NewClient[AuthReq, UserResp](
+createWithAuth := restyclient.NewClient[AuthReq, UserResp](
     restyClient,
     "POST",
     "http://localhost:8080/users",
@@ -304,7 +311,7 @@ type UpdateArticleReq struct {
 // PUT /articles/{id}?verbose=true
 // Authorization: Bearer token
 // Body: {"title": "...", "content": "..."}
-updateArticle := client.NewClient[UpdateArticleReq, Article](
+updateArticle := restyclient.NewClient[UpdateArticleReq, Article](
     restyClient,
     "PUT",
     "http://localhost:8080/articles/{id}",
@@ -325,20 +332,22 @@ article, err := updateArticle(ctx, UpdateArticleReq{
 
 ```go
 // GET /health
-healthCheck := client.NewGetter[HealthResp](
+healthCheck := restyclient.NewGetter[HealthResp](
     restyClient,
+    "GET",
     "http://localhost:8080/health",
 )
 
 health, err := healthCheck(ctx)
 ```
 
-#### NewPoster - POST 请求（无返回值）
+#### NewConsumer - 只有输入的请求
 
 ```go
 // POST /users
-createUser := client.NewPoster[CreateUserReq](
+createUser := restyclient.NewConsumer[CreateUserReq](
     restyClient,
+    "POST",
     "http://localhost:8080/users",
 )
 
@@ -348,12 +357,13 @@ err := createUser(ctx, CreateUserReq{
 })
 ```
 
-#### NewDeleter - DELETE 请求
+#### NewAction - 无输入输出的请求
 
 ```go
 // DELETE /users/{id}
-deleteUser := client.NewDeleter(
+deleteUser := restyclient.NewAction(
     restyClient,
+    "DELETE",
     "http://localhost:8080/users/{id}",
 )
 
@@ -373,7 +383,7 @@ customEncoder := func(req *resty.Request, input any) error {
 // 自定义响应解码器
 customDecoder := func(resp *resty.Response) (any, error) {
     var result WrapperResponse
-    json.Unmarshal(resp.Body(), &result)
+    json.Unmarshal(resp.Bytes(), &result)
     return result.Data, nil
 }
 
@@ -382,19 +392,19 @@ customErrorHandler := func(resp *resty.Response, err error) error {
     if err != nil {
         return err
     }
-    if resp.StatusCode() >= 400 {
+    if resp.IsError() {
         return fmt.Errorf("API error: %s", resp.Status())
     }
     return nil
 }
 
-handler := client.NewClient[Req, Resp](
+handler := restyclient.NewClient[Req, Resp](
     restyClient,
     "POST",
     "/api/endpoint",
-    client.WithEncoder(customEncoder),
-    client.WithDecoder(customDecoder),
-    client.WithErrorHandler(customErrorHandler),
+    restyclient.WithEncoder(customEncoder),
+    restyclient.WithDecoder(customDecoder),
+    restyclient.WithErrorHandler(customErrorHandler),
 )
 ```
 
@@ -416,14 +426,16 @@ go run main.go
 
 ## API 参考
 
-### Server 包
+### gin-server 包
+
+包名：`ginserver`
 
 #### 核心函数
 
-- `WrapHandler[I, O any](h Handler[I, O], options...) gin.HandlerFunc`
-- `WrapGetter[O any](h GetterHandler[O], options...) gin.HandlerFunc`
-- `WrapConsumer[I any](h ConsumerHandler[I], options...) gin.HandlerFunc`
-- `WrapAction(h ActionHandler, options...) gin.HandlerFunc`
+- `WrapHandler[I, O any](h handler.HandlerFunc[I, O], options...) gin.HandlerFunc`
+- `WrapGetter[O any](h handler.GetterHandlerFunc[O], options...) gin.HandlerFunc`
+- `WrapConsumer[I any](h handler.ConsumerHandlerFunc[I], options...) gin.HandlerFunc`
+- `WrapAction(h handler.ActionHandlerFunc, options...) gin.HandlerFunc`
 
 #### 选项函数
 
@@ -431,22 +443,34 @@ go run main.go
 - `WithEncoder(encoder EncoderFunc) WrapHandlerOptionFunc`
 - `WithErrorHandler(errHandler ErrorHandlerFunc) WrapHandlerOptionFunc`
 
-### Client 包
+#### 函数签名
+
+- `DecoderFunc`: `func(c *gin.Context) (any, error)`
+- `EncoderFunc`: `func(c *gin.Context, output any) error`
+- `ErrorHandlerFunc`: `func(c *gin.Context, err error)`
+
+### resty-client 包
+
+包名：`restyclient`
 
 #### 核心函数
 
-- `NewClient[I, O any](client *resty.Client, method, url string, options...) ClientHandler[I, O]`
-- `NewGetter[O any](client *resty.Client, url string, options...) GetterHandler[O]`
-- `NewPoster[I any](client *resty.Client, url string, options...) PosterHandler[I]`
-- `NewPutter[I any](client *resty.Client, url string, options...) PutterHandler[I]`
-- `NewDeleter(client *resty.Client, url string, options...) DeleterHandler`
-- `NewAction(client *resty.Client, method, url string, options...) ActionHandler`
+- `NewClient[I, O any](client *resty.Client, method, url string, options...) handler.HandlerFunc[I, O]`
+- `NewGetter[O any](client *resty.Client, method, url string, options...) handler.GetterHandlerFunc[O]`
+- `NewConsumer[I any](client *resty.Client, method, url string, options...) handler.ConsumerHandlerFunc[I]`
+- `NewAction(client *resty.Client, method, url string, options...) handler.ActionHandlerFunc`
 
 #### 选项函数
 
 - `WithEncoder(encoder RequestEncoderFunc) ClientOptionFunc`
 - `WithDecoder(decoder ResponseDecoderFunc) ClientOptionFunc`
 - `WithErrorHandler(errHandler ErrorHandlerFunc) ClientOptionFunc`
+
+#### 函数签名
+
+- `RequestEncoderFunc`: `func(req *resty.Request, input any) error`
+- `ResponseDecoderFunc`: `func(resp *resty.Response) (any, error)`
+- `ErrorHandlerFunc`: `func(resp *resty.Response, err error) error`
 
 #### 支持的标签
 
@@ -456,10 +480,16 @@ go run main.go
 - `header:"HeaderName"` - HTTP 请求头
 - `json:"fieldName"` - JSON 请求体字段
 
-## 测试覆盖率
+### handler 包
 
-- Server 包：87.3%
-- Client 包：91.9%
+定义通用处理函数类型：
+
+- `HandlerFunc[I, O any]`: `func(ctx context.Context, input I) (O, error)`
+- `ActionHandlerFunc`: `func(ctx context.Context) error`
+- `GetterHandlerFunc[O any]`: `func(ctx context.Context) (O, error)`
+- `ConsumerHandlerFunc[I any]`: `func(ctx context.Context, args I) error`
+
+## 测试
 
 运行测试：
 
@@ -467,11 +497,14 @@ go run main.go
 # 测试所有包
 go test ./...
 
-# 测试 server 包
-go test -v -cover ./server
+# 测试 gin-server 包
+go test -v -cover ./gin-server
 
-# 测试 client 包
-go test -v -cover ./client
+# 测试 resty-client 包
+go test -v -cover ./resty-client
+
+# 测试 examples/fullstack
+cd examples/fullstack && go test -v
 ```
 
 ## 最佳实践

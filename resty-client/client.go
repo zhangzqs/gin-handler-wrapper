@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/zhangzqs/gin-handler-wrapper/common"
+	"github.com/zhangzqs/gin-handler-wrapper/handler"
 	"resty.dev/v3"
 )
 
@@ -221,7 +221,7 @@ func NewClient[I, O any](
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) common.HandlerFunc[I, O] {
+) handler.HandlerFunc[I, O] {
 	opts := mergeOptions[I, O](options...)
 
 	return func(ctx context.Context, input I) (O, error) {
@@ -265,7 +265,7 @@ func NewAction(
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) common.ActionHandlerFunc {
+) handler.ActionHandlerFunc {
 	handler := NewClient[struct{}, struct{}](restyClient, method, url, options...)
 	return func(ctx context.Context) error {
 		_, err := handler(ctx, struct{}{})
@@ -280,7 +280,7 @@ func NewGetter[O any](
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) common.GetterHandlerFunc[O] {
+) handler.GetterHandlerFunc[O] {
 	handler := NewClient[struct{}, O](restyClient, method, url, options...)
 	return func(ctx context.Context) (O, error) {
 		return handler(ctx, struct{}{})
@@ -294,7 +294,7 @@ func NewConsumer[I any](
 	method string,
 	url string,
 	options ...ClientOptionFunc,
-) common.ConsumerHandlerFunc[I] {
+) handler.ConsumerHandlerFunc[I] {
 	handler := NewClient[I, struct{}](restyClient, method, url, options...)
 	return func(ctx context.Context, args I) error {
 		_, err := handler(ctx, args)
